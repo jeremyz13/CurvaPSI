@@ -40,7 +40,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 #guide button{height:34px;padding:0 12px;font-size:12.5px;flex:none;background:#fff;color:var(--ink)}
 #guide.ok{background:#e7f4ef;color:#1b6b55}
 #guide.active{background:#fdf4e0;color:#7a5410}
-#view{position:relative;height:clamp(260px,calc(100vh - 400px),620px);height:clamp(260px,calc(100dvh - 400px),620px);overflow:hidden;background:#fbfcfd;background-image:radial-gradient(#e3e8ee 1px,transparent 1px);background-size:16px 16px;border:1px solid var(--line);border-radius:14px;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab}
+#view{position:relative;height:clamp(260px,calc(100vh - 400px),620px);height:clamp(260px,calc(100svh - 400px),620px);overflow:hidden;background:#fbfcfd;background-image:radial-gradient(#e3e8ee 1px,transparent 1px);background-size:16px 16px;border:1px solid var(--line);border-radius:14px;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab}
 #view:active{cursor:grabbing}
 #layer{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
 #layer img{display:block;max-width:none;pointer-events:none;-webkit-user-drag:none}
@@ -293,6 +293,14 @@ view.addEventListener('wheel',e=>{
  $(id).addEventListener('click',()=>{if(!img)return;const{cx,cy}=ctr();setZoom(s*(id==='zin'?1.5:1/1.5),cx,cy)});
 });
 window.addEventListener('resize',()=>{if(img)apply()});
+let lastC=null;
+if(window.ResizeObserver){
+ new ResizeObserver(()=>{
+  const c=ctr();
+  if(img&&lastC&&(c.cx!==lastC.cx||c.cy!==lastC.cy)){tx+=c.cx-lastC.cx;ty+=c.cy-lastC.cy;apply()}
+  lastC=c;
+ }).observe(view);
+}
 $('fineBtn').addEventListener('pointerdown',e=>e.stopPropagation());
 $('fineBtn').addEventListener('click',()=>{fine=!fine;$('fineBtn').setAttribute('aria-pressed',fine);$('fineBtn').classList.toggle('on',fine);updateUI()});
 function nudge(dx,dy){if(!img)return;tx+=dx;ty+=dy;apply()}
