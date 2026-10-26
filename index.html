@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#17324d">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>CurvaPSI — Lectura de curvas de bombas</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{--ink:#14202b;--sub:#5b6b7b;--mut:#8593a1;--line:#e1e6ec;--bg:#f2f5f8;--navy:#17324d;--blue:#1f4e79;--teal:#0f766e;--org:#c2410c;--amber:#b7791f;--r:14px}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);touch-action:manipulation;-webkit-font-smoothing:antialiased}
+svg{display:block}
+.top{background:var(--navy);color:#fff;padding:9px 14px;display:flex;align-items:center;gap:11px}
+.logo{width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;flex:none}
+.top h1{font-size:16.5px;font-weight:650;margin:0;letter-spacing:.1px}
+.top p{margin:1px 0 0;font-size:12px;color:#a9bccf}
+main{max-width:760px;margin:0 auto;padding:10px 12px 20px}
+.steps{display:flex;gap:6px;margin:0 0 8px}
+.st{flex:1;display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:var(--mut);padding:6px 10px;border-radius:10px;background:transparent}
+.st span{width:22px;height:22px;border-radius:50%;background:#dfe5ec;color:#5b6b7b;display:flex;align-items:center;justify-content:center;font-size:12px;flex:none}
+.st.active{background:#fff;color:var(--navy);box-shadow:0 1px 2px rgba(20,32,43,.08)}
+.st.active span{background:var(--navy);color:#fff}
+.st.done{color:var(--teal)}
+.st.done span{background:var(--teal);color:#fff;font-size:0}
+.st.done span:before{content:"";width:9px;height:5px;border-left:2.2px solid #fff;border-bottom:2.2px solid #fff;transform:rotate(-45deg) translate(1px,-1px)}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:12px;margin-bottom:12px;box-shadow:0 1px 2px rgba(20,32,43,.05),0 6px 18px rgba(20,32,43,.04)}
+button,.btn{font:600 14px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:12px;padding:0 14px;height:44px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+button.primary,.btn.primary{background:var(--navy);border-color:var(--navy);color:#fff}
+button:disabled{opacity:.45;cursor:not-allowed}
+.tools{display:flex;gap:8px;align-items:stretch;margin-bottom:8px}
+.tools .btn{height:50px;padding:0 14px;flex:none}
+.sel{display:flex;flex-direction:column;justify-content:center;border:1px solid var(--line);border-radius:12px;padding:4px 6px 4px 11px;background:#fff;min-width:0;flex:1}
+.sel span{font-size:10.5px;color:var(--mut);font-weight:600;letter-spacing:.2px}
+.sel select{border:0;padding:0;margin:0;font:600 14px -apple-system,Roboto,Arial,sans-serif;background:transparent;color:var(--ink);outline:none;min-width:0;width:100%}
+#guide{padding:9px 12px;border-radius:12px;background:#eef3f8;font-size:13px;font-weight:550;color:var(--blue);line-height:1.4;margin-bottom:8px;display:flex;align-items:center;gap:10px}
+#guide span{flex:1}
+#guide button{height:34px;padding:0 12px;font-size:12.5px;flex:none;background:#fff;color:var(--ink)}
+#guide.ok{background:#e7f4ef;color:#1b6b55}
+#guide.active{background:#fdf4e0;color:#7a5410}
+#view{position:relative;height:clamp(260px,calc(100vh - 400px),620px);height:clamp(260px,calc(100dvh - 400px),620px);overflow:hidden;background:#fbfcfd;background-image:radial-gradient(#e3e8ee 1px,transparent 1px);background-size:16px 16px;border:1px solid var(--line);border-radius:14px;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab}
+#view:active{cursor:grabbing}
+#layer{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
+#layer img{display:block;max-width:none;pointer-events:none;-webkit-user-drag:none}
+#layer.px img{image-rendering:pixelated}
+#empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--sub);text-align:center;padding:24px;pointer-events:none}
+#empty .ico{width:56px;height:56px;border-radius:16px;background:#e9eff5;color:var(--blue);display:flex;align-items:center;justify-content:center}
+#empty strong{font-size:15px;color:var(--ink)}#empty span{font-size:13px}
+#marks{position:absolute;inset:0;pointer-events:none}
+.mk{position:absolute;width:0;height:0}
+.dot{position:absolute;left:-6px;top:-6px;width:12px;height:12px;border-radius:50%;background:var(--teal);border:2px solid #fff;box-shadow:0 0 0 1px var(--teal),0 1px 4px rgba(0,0,0,.25)}
+.num{position:absolute;left:9px;top:-22px;font:700 13px sans-serif;color:var(--teal);text-shadow:0 0 2px #fff,0 0 2px #fff,0 0 3px #fff,0 0 3px #fff}
+.cx{position:absolute;left:-8px;top:-8px;width:16px;height:16px}
+.cx:before,.cx:after{content:"";position:absolute;background:var(--amber)}
+.cx:before{left:7px;top:0;width:2px;height:16px}.cx:after{top:7px;left:0;height:2px;width:16px}
+.cl{position:absolute;left:10px;top:-24px;font:700 12px sans-serif;color:#fff;background:var(--amber);padding:3px 6px;border-radius:6px;white-space:nowrap}
+.mdot{position:absolute;left:-6px;top:-6px;width:12px;height:12px;background:var(--org);border:2px solid #fff;box-shadow:0 0 0 1px var(--org),0 1px 4px rgba(0,0,0,.25);transform:rotate(45deg)}
+.mnum{position:absolute;left:-20px;top:-22px;font:700 13px sans-serif;color:var(--org);text-shadow:0 0 2px #fff,0 0 2px #fff,0 0 3px #fff,0 0 3px #fff}
+.mline{position:absolute;width:0;border-left:2px dashed rgba(194,65,12,.85)}
+.seg{position:absolute;background:rgba(183,121,31,.9);box-shadow:0 0 0 .5px rgba(255,255,255,.9);pointer-events:none}
+#view:not(.ready) .seg,#view:not(.ready) #ring{display:none}
+#sL{left:0;top:50%;width:calc(50% - 10px);height:1px}
+#sR{right:0;top:50%;width:calc(50% - 10px);height:1px}
+#sT{left:50%;top:0;height:calc(50% - 10px);width:1px}
+#sB{left:50%;bottom:0;height:calc(50% - 10px);width:1px}
+#ring{position:absolute;left:50%;top:50%;width:16px;height:16px;margin:-8px 0 0 -8px;border:1.5px solid var(--amber);border-radius:50%;box-shadow:0 0 0 1px rgba(255,255,255,.9);pointer-events:none}
+.zgrp{position:absolute;right:10px;top:10px;display:flex;flex-direction:column;align-items:stretch;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(20,32,43,.12)}
+.zgrp button{border:0;border-radius:0;width:44px;height:44px;padding:0;background:#fff}
+.zgrp button+button{border-top:1px solid var(--line)}
+#zoomLbl{font:700 11.5px sans-serif;text-align:center;padding:5px 0;background:#f4f7fa;border-top:1px solid var(--line);color:var(--sub)}
+#fineBtn{position:absolute;left:10px;top:10px;height:36px;padding:0 12px 0 10px;border-radius:18px;font-size:12.5px;gap:7px;box-shadow:0 2px 8px rgba(20,32,43,.12)}
+#fineBtn i{width:26px;height:15px;border-radius:8px;background:#cfd7e0;position:relative;display:block;transition:background .15s}
+#fineBtn i:after{content:"";position:absolute;left:2px;top:2px;width:11px;height:11px;border-radius:50%;background:#fff;transition:transform .15s}
+#fineBtn.on{background:#fff;border-color:var(--amber);color:#7a5410}
+#fineBtn.on i{background:var(--amber)}#fineBtn.on i:after{transform:translateX(11px)}
+#dock{position:sticky;bottom:0;z-index:20;margin:0 -12px 12px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:rgba(255,255,255,.97);border-top:1px solid var(--line);box-shadow:0 -8px 22px rgba(20,32,43,.08);display:flex;flex-direction:column;gap:8px}
+#readout{display:grid;grid-template-columns:1fr 1fr 1.25fr;gap:6px}
+#readout div{background:#f4f7fa;border-radius:11px;padding:7px 10px;line-height:1.15}
+#readout small{display:block;font-size:10.5px;color:var(--mut);font-weight:600}
+#readout b{font-size:17px;font-weight:700;letter-spacing:-.2px}
+#readout em{font-style:normal;font-size:11px;color:var(--sub);margin-left:4px}
+#readout .hl{background:#e6eff8}#readout .hl b{color:var(--blue);font-size:19px}
+#calBox input{width:100%;height:48px;font-size:17px;border:1.5px solid #cfd7e0;border-radius:12px;padding:0 14px;color:var(--ink);background:#fff;outline:none}
+#calBox input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(31,78,121,.15)}
+#err{color:#b42318;font-size:12.5px;margin-top:5px}
+#err:empty{display:none}
+#nudge{display:none;gap:6px}
+#nudge button{height:36px}
+#nudge button{flex:1;height:38px;padding:0;border-radius:10px;color:var(--sub);background:#f4f7fa;border-color:transparent;touch-action:manipulation}
+#btns{display:flex;gap:8px}
+#btns button{height:50px;font-size:15px;border-radius:13px}
+#btns #backBtn{flex:1}#btns #mainBtn{flex:2}
+.res-head{display:flex;align-items:center;gap:8px;margin:2px 0 10px}
+.res-head h2{font-size:16px;margin:0}
+.badge{min-width:24px;height:24px;border-radius:12px;background:#e6eff8;color:var(--blue);font-size:12.5px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 7px}
+.link-danger{margin-left:auto;border:0;background:none;color:#b42318;height:36px;padding:0 6px;font-size:13px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.stat{border-radius:12px;padding:10px 12px;background:#f4f7fa}
+.stat small{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--sub);font-weight:600}
+.stat small i{width:8px;height:8px;border-radius:50%;display:block}
+.stat b{display:block;font-size:20px;margin-top:3px;letter-spacing:-.3px}
+#pointsBody{display:flex;flex-direction:column;gap:10px}
+.empty-pts{border:1.5px dashed #d3dae2;border-radius:14px;padding:22px 16px;text-align:center;color:var(--mut);font-size:13.5px;line-height:1.5}
+.pt{border:1px solid var(--line);border-radius:14px;padding:10px 12px;background:#fff}
+.pt-head{display:flex;align-items:center;gap:9px;margin-bottom:8px}
+.pt-n{width:24px;height:24px;border-radius:50%;background:var(--teal);color:#fff;font-size:12.5px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.pt-head strong{font-size:14px}
+.del{margin-left:auto;width:34px;height:34px;padding:0;border:0;background:#f4f7fa;color:#b42318;border-radius:10px}
+.pt-vals{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px}
+.pt-vals div{background:#f4f7fa;border-radius:10px;padding:7px 9px}
+.pt-vals small{display:block;font-size:10.5px;color:var(--mut);font-weight:600;white-space:nowrap}
+.pt-vals b{font-size:16px}
+.pt-vals .cv{background:#e5f3f1}.pt-vals .cv b{color:var(--teal)}
+.pt-mine{display:flex;align-items:center;gap:10px}
+.pt-mine label{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--org)}
+input.mi{width:96px;height:42px;font-size:16px;font-weight:600;border:1.5px solid #efc3a8;border-radius:11px;background:#fff8f3;padding:0 10px;color:var(--ink);outline:none}
+input.mi:focus{border-color:var(--org);box-shadow:0 0 0 3px rgba(194,65,12,.14)}
+.dif{margin-left:auto;font-size:12.5px;font-weight:600;color:var(--mut);text-align:right}
+.dif.has{color:#9a3412;background:#fff1e8;border-radius:9px;padding:6px 10px}
+.exp{display:flex;gap:8px;margin-top:14px}
+.exp .primary{flex:2}.exp button{flex:1;height:48px}
+.foot{color:var(--mut);font-size:11.5px;line-height:1.5;margin-top:12px}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="logo"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#cfe3f5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v16h16"/><path d="M7 9c4 0 7 1 11 7"/><circle cx="12" cy="11.2" r="1.6" fill="#7dd3c7" stroke="none"/></svg></div>
+  <div><h1>CurvaPSI</h1><p>Lee y compara presiones en curvas de bombas</p></div>
+</header>
+<main>
+  <nav class="steps" id="steps" aria-label="Pasos"><div class="st active"><span>1</span>Imagen</div><div class="st"><span>2</span>Calibrar</div><div class="st"><span>3</span>Puntos</div></nav>
+
+  <section class="card">
+    <div class="tools">
+      <label class="btn primary" for="fileInput" id="upLbl"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg>Subir</label><input id="fileInput" type="file" accept="image/*" hidden>
+      <label class="sel"><span>ALTURA</span><select id="heightUnit"><option value="ft">pies (ft)</option><option value="m">metros (m)</option><option value="psi">PSI</option></select></label>
+      <label class="sel"><span>CAUDAL</span><select id="flowUnit"><option>GPM</option><option>m³/h</option><option>L/s</option><option>US gpm</option></select></label>
+    </div>
+    <div id="guide"><span id="guideTxt">Sube una imagen para empezar.</span><button id="recalBtn" style="display:none">Recalibrar</button></div>
+    <div id="view">
+      <div id="empty"><div class="ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 9"/></svg></div><strong>Sube la imagen de tu curva</strong><span>JPG, PNG o captura de pantalla</span></div>
+      <div id="layer"></div>
+      <div id="marks"></div>
+      <div class="seg" id="sL"></div><div class="seg" id="sR"></div><div class="seg" id="sT"></div><div class="seg" id="sB"></div><div id="ring"></div>
+      <button id="fineBtn" aria-pressed="false"><i></i>Ajuste fino</button>
+      <div class="zgrp">
+        <button id="zin" aria-label="Acercar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+        <button id="zout" aria-label="Alejar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
+        <span id="zoomLbl">x1.0</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="dock" aria-label="Acciones">
+    <div id="readBox" style="display:none"><div id="readout"></div></div>
+    <div id="calBox" style="display:none">
+      <input id="valInput" type="text" inputmode="decimal" placeholder="Número de la marca bajo la mira" autocomplete="off">
+      <div id="err" role="alert"></div>
+    </div>
+    <div id="nudge">
+      <button id="nL" aria-label="Mover mira a la izquierda"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="margin:auto"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <button id="nR" aria-label="Mover mira a la derecha"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="margin:auto"><path d="M9 5l7 7-7 7"/></svg></button>
+      <button id="nU" aria-label="Mover mira arriba"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="margin:auto"><path d="M5 15l7-7 7 7"/></svg></button>
+      <button id="nD" aria-label="Mover mira abajo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="margin:auto"><path d="M5 9l7 7 7-7"/></svg></button>
+    </div>
+    <div id="btns"><button id="backBtn" style="display:none">Deshacer</button><button id="mainBtn" class="primary" disabled>Calibrar ejes</button></div>
+  </section>
+
+  <section class="card">
+    <div class="res-head"><h2>Puntos</h2><span class="badge" id="countBadge">0</span><button class="link-danger" id="clearBtn">Borrar todo</button></div>
+    <div class="stats">
+      <div class="stat"><small>Puntos marcados</small><b id="statCount">0</b></div>
+      <div class="stat"><small><i style="background:var(--teal)"></i>Presión media (curva)</small><b id="statAvg">— PSI</b></div>
+      <div class="stat"><small><i style="background:var(--org)"></i>Mi presión media</small><b id="statMine">— PSI</b></div>
+      <div class="stat"><small>Diferencia media</small><b id="statDiff">—</b></div>
+    </div>
+    <div id="pointsBody"></div>
+    <div class="exp"><button id="pdfBtn" class="primary" disabled>Generar PDF</button><button id="csvBtn">CSV</button></div>
+    <div class="foot">Los valores son estimaciones según tu calibración y la posición de la mira. Verifica los datos antes de usarlos en un informe técnico.</div>
+  </section>
+</main>
+
+<script>
+
+const $=id=>document.getElementById(id);
+const view=$('view'), layer=$('layer');
+let img=null, W=0, H=0, s=1, tx=0, ty=0, fit=1;
+let calX=null, calY=null, calStep=-1, calTmp=[], points=[];
+let fine=false;
+const MAXZ=80;
+const STEPS=[
+ 'Paso 1 de 4 · Eje HORIZONTAL (caudal): mueve la imagen hasta poner la mira sobre una marca con número, por ejemplo el 0. Escribe ese número y pulsa Confirmar.',
+ 'Paso 2 de 4 · Eje HORIZONTAL: ahora otra marca con número, lo más lejos posible de la primera.',
+ 'Paso 3 de 4 · Eje VERTICAL (altura): pon la mira sobre una marca con número, por ejemplo el 0.',
+ 'Paso 4 de 4 · Eje VERTICAL: otra marca con número, lo más lejos posible de la primera.'
+];
+
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const fmt=(n,d)=>{const r=Number(n.toFixed(d));return Object.is(r,-0)?0:r};
+const fixed=(n,d)=>{const t=n.toFixed(d);return Number(t)===0?(0).toFixed(d):t};
+function psiToH(psi){const u=$('heightUnit').value;return u==='m'?psi/1.422334:u==='ft'?psi/0.433527:psi}
+function measNy(p){
+ if(p.m==null||!calY)return null;
+ return calY.p1+(psiToH(p.m)-calY.v1)*(calY.p2-calY.p1)/(calY.v2-calY.v1);
+}
+function diffOf(p){
+ if(p.m==null)return null;
+ const c=val(p).psi;return{d:p.m-c,pct:c?(p.m-c)/c*100:null};
+}
+function diffLabel(p){return p.m==null?'Sin medición':diffText(p)}
+function diffText(p){
+ const r=diffOf(p);if(!r)return '—';
+ const sg=r.d>0?'+':'';
+ return sg+fixed(r.d,1)+(r.pct==null?'':' ('+sg+fixed(r.pct,1)+'%)');
+}
+const calibrated=()=>!!(calX&&calY);
+const lin=(c,p)=>c.v1+(p-c.p1)*(c.v2-c.v1)/(c.p2-c.p1);
+function toPsi(h){const u=$('heightUnit').value;return u==='m'?h*1.422334:u==='ft'?h*0.433527:h}
+function val(p){const q=lin(calX,p.nx),h=lin(calY,p.ny);return{q,h,psi:toPsi(h)}}
+function ctr(){return{cx:view.clientWidth/2,cy:view.clientHeight/2}}
+function pos(){const{cx,cy}=ctr();return{nx:(cx-tx)/(s*W),ny:(cy-ty)/(s*H)}}
+
+function clampPan(){
+ const{cx,cy}=ctr();
+ tx=Math.min(cx,Math.max(cx-W*s,tx));
+ ty=Math.min(cy,Math.max(cy-H*s,ty));
+}
+function apply(){
+ if(!img)return;
+ clampPan();
+ layer.style.transform='translate('+tx+'px,'+ty+'px) scale('+s+')';
+ drawMarks();updateReadout();
+ $('zoomLbl').textContent='x'+(s/fit).toFixed(1);
+ layer.classList.toggle('px',s>4);
+}
+function fitImage(){
+ const vw=view.clientWidth,vh=view.clientHeight;
+ fit=Math.min(vw/W,vh/H);s=fit;
+ tx=(vw-W*s)/2;ty=(vh-H*s)/2;apply();
+}
+function setZoom(ns,ax,ay){
+ ns=clamp(ns,fit*0.6,fit*MAXZ);
+ const ix=(ax-tx)/s,iy=(ay-ty)/s;
+ s=ns;tx=ax-ix*s;ty=ay-iy*s;apply();
+}
+
+$('fileInput').addEventListener('change',e=>{
+ const f=e.target.files[0];if(!f)return;
+ if(!f.type.startsWith('image/')){alert('Selecciona un archivo de imagen.');return}
+ const url=URL.createObjectURL(f),im=new Image();
+ im.onload=()=>{
+  img=im;W=im.naturalWidth;H=im.naturalHeight;im.draggable=false;
+  layer.innerHTML='';layer.appendChild(im);layer.style.width=W+'px';layer.style.height=H+'px';
+  $('empty').style.display='none';
+  calX=calY=null;calStep=-1;calTmp=[];points=[];
+  fitImage();updateUI();
+ };
+ im.src=url;
+});
+
+const ptrs=new Map();
+view.addEventListener('pointerdown',e=>{
+ if(!img)return;
+ view.setPointerCapture(e.pointerId);
+ ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+});
+view.addEventListener('pointermove',e=>{
+ if(!img||!ptrs.has(e.pointerId))return;
+ const p=ptrs.get(e.pointerId),r=view.getBoundingClientRect();
+ if(ptrs.size===1){
+  const k=fine?0.2:1;tx+=(e.clientX-p.x)*k;ty+=(e.clientY-p.y)*k;p.x=e.clientX;p.y=e.clientY;apply();
+ }else if(ptrs.size===2){
+  const arr=[...ptrs.values()],a=arr[0],b=arr[1];
+  const d0=Math.hypot(a.x-b.x,a.y-b.y),m0x=(a.x+b.x)/2-r.left,m0y=(a.y+b.y)/2-r.top;
+  p.x=e.clientX;p.y=e.clientY;
+  const d1=Math.hypot(a.x-b.x,a.y-b.y),m1x=(a.x+b.x)/2-r.left,m1y=(a.y+b.y)/2-r.top;
+  if(d0<1)return;
+  const ix=(m0x-tx)/s,iy=(m0y-ty)/s;
+  s=clamp(s*d1/d0,fit*0.6,fit*MAXZ);
+  tx=m1x-ix*s;ty=m1y-iy*s;apply();
+ }
+});
+['pointerup','pointercancel','pointerleave'].forEach(t=>view.addEventListener(t,e=>{ptrs.delete(e.pointerId)}));
+view.addEventListener('wheel',e=>{
+ if(!img)return;e.preventDefault();
+ const r=view.getBoundingClientRect();
+ setZoom(s*(e.deltaY<0?1.2:1/1.2),e.clientX-r.left,e.clientY-r.top);
+},{passive:false});
+['zin','zout'].forEach(id=>{
+ $(id).addEventListener('pointerdown',e=>e.stopPropagation());
+ $(id).addEventListener('click',()=>{if(!img)return;const{cx,cy}=ctr();setZoom(s*(id==='zin'?1.5:1/1.5),cx,cy)});
+});
+window.addEventListener('resize',()=>{if(img)apply()});
+$('fineBtn').addEventListener('pointerdown',e=>e.stopPropagation());
+$('fineBtn').addEventListener('click',()=>{fine=!fine;$('fineBtn').setAttribute('aria-pressed',fine);$('fineBtn').classList.toggle('on',fine);updateUI()});
+function nudge(dx,dy){if(!img)return;tx+=dx;ty+=dy;apply()}
+[['nL',1,0],['nR',-1,0],['nU',0,1],['nD',0,-1]].forEach(([id,dx,dy])=>{
+ const b=$(id);let t1=null,t2=null;
+ const stop=()=>{clearTimeout(t1);clearInterval(t2)};
+ b.addEventListener('pointerdown',e=>{e.preventDefault();nudge(dx,dy);t1=setTimeout(()=>{t2=setInterval(()=>nudge(dx,dy),50)},350)});
+ ['pointerup','pointerleave','pointercancel'].forEach(t=>b.addEventListener(t,stop));
+});
+
+function startCal(){
+ if(!img)return;
+ calX=calY=null;points=[];calStep=0;calTmp=[];
+ $('valInput').value='';$('err').textContent='';
+ updateUI();apply();
+}
+function cancelCal(){calStep=-1;calTmp=[];calX=calY=null;updateUI();apply()}
+function setErr(t){$('err').textContent=t}
+function confirmCal(){
+ const raw=$('valInput').value.trim().replace(',','.');
+ const v=parseFloat(raw);
+ if(raw===''||isNaN(v)){setErr('Escribe el número de la marca que está bajo la mira.');$('valInput').focus();return}
+ const p=pos(),isX=calStep<2,axisPos=isX?p.nx:p.ny;
+ if(calStep%2===1){
+  const prev=calTmp[calTmp.length-1];
+  const prevPos=isX?prev.nx:prev.ny;
+  if(Math.abs(axisPos-prevPos)<0.05){setErr('Esa marca está muy cerca de la anterior. Elige otra más lejana.');return}
+  if(v===prev.v){setErr('Los dos números no pueden ser iguales.');return}
+ }
+ calTmp.push({nx:p.nx,ny:p.ny,v:v});
+ calStep++;
+ if(calStep===2){const[a,b]=calTmp;calX={p1:a.nx,v1:a.v,p2:b.nx,v2:b.v}}
+ if(calStep===4){const[a,b]=calTmp.slice(2);calY={p1:a.ny,v1:a.v,p2:b.ny,v2:b.v};calStep=-1;calTmp=[]}
+ $('valInput').value='';setErr('');
+ updateUI();apply();
+}
+function addPoint(){
+ if(!img||!calibrated())return;
+ const p=pos();points.push({nx:p.nx,ny:p.ny,m:null});
+ updateUI();apply();
+}
+
+$('mainBtn').onclick=()=>{
+ if(!img)return;
+ if(calStep>=0)confirmCal();
+ else if(!calibrated())startCal();
+ else addPoint();
+};
+$('backBtn').onclick=()=>{
+ if(calStep>=0)cancelCal();
+ else{points.pop();updateUI();apply()}
+};
+$('recalBtn').onclick=startCal;
+$('valInput').addEventListener('input',()=>setErr(''));
+$('valInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();confirmCal()}});
+$('clearBtn').onclick=()=>{points=[];updateUI();apply()};
+$('heightUnit').onchange=$('flowUnit').onchange=()=>{updateUI();updateReadout();drawMarks()};
+
+function drawMarks(){
+ const m=$('marks');let h='';
+ calTmp.forEach(c=>{
+  const x=tx+c.nx*W*s,y=ty+c.ny*H*s;
+  h+='<div class="mk" style="left:'+x+'px;top:'+y+'px"><div class="cx"></div><span class="cl">'+c.v+'</span></div>';
+ });
+ if(calibrated()&&calStep<0)points.forEach((p,i)=>{
+  const x=tx+p.nx*W*s,y=ty+p.ny*H*s,mn=measNy(p);
+  if(mn!=null){
+   const y2=ty+mn*H*s;
+   h+='<div class="mline" style="left:'+x+'px;top:'+Math.min(y,y2)+'px;height:'+Math.abs(y2-y)+'px"></div>';
+   h+='<div class="mk" style="left:'+x+'px;top:'+y2+'px"><div class="mdot"></div><span class="mnum">'+(i+1)+'</span></div>';
+  }
+  h+='<div class="mk" style="left:'+x+'px;top:'+y+'px"><div class="dot"></div><span class="num">'+(i+1)+'</span></div>';
+ });
+ m.innerHTML=h;
+}
+function updateReadout(){
+ const el=$('readout');
+ if(img&&calibrated()&&calStep<0){
+  const p=pos(),v=val(p),hu=$('heightUnit').value,hl=hu==='psi'?'PSI':hu;
+  el.innerHTML='<div><small>Caudal</small><b>'+fmt(v.q,1).toLocaleString('en-US')+'</b><em>'+$('flowUnit').value+'</em></div>'
+   +'<div><small>Altura</small><b>'+fmt(v.h,1)+'</b><em>'+hl+'</em></div>'
+   +'<div class="hl"><small>Presión</small><b>'+fmt(v.psi,2)+'</b><em>PSI</em></div>';
+ }else el.textContent='';
+}
+function setGuide(t,c){$('guideTxt').textContent=t;$('guide').className=c||''}
+function updateUI(){
+ const inCal=calStep>=0,isMark=img&&calibrated()&&!inCal;
+ const stateOf=[img?'done':'active',!img?'':(isMark?'done':'active'),isMark?'active':''];
+ document.querySelectorAll('#steps .st').forEach((el,i)=>{el.className='st '+stateOf[i]});
+ $('upLbl').lastChild.textContent=img?'Cambiar':'Subir';
+ view.classList.toggle('ready',!!img);
+ if(!img)setGuide('Sube una imagen para empezar.');
+ else if(inCal)setGuide(STEPS[calStep],'active');
+ else if(isMark)setGuide('✔ Ejes calibrados. Pon la mira sobre la curva y pulsa «Agregar punto».','ok');
+ else setGuide('Imagen cargada. Pulsa «Calibrar ejes» y sigue los 4 pasos.');
+ $('calBox').style.display=inCal?'block':'none';
+ $('nudge').style.display=(img&&fine&&(inCal||isMark))?'flex':'none';
+ $('readBox').style.display=isMark?'block':'none';
+ $('backBtn').style.display=(inCal||(isMark&&points.length))?'inline-flex':'none';
+ $('backBtn').textContent=inCal?'Cancelar':'Deshacer';
+ $('recalBtn').style.display=(isMark)?'inline-flex':'none';
+ const mb=$('mainBtn');mb.disabled=!img;
+ mb.textContent=inCal?'Confirmar marca ('+(calStep+1)+'/4)':isMark?'Agregar punto '+(points.length+1):'Calibrar ejes';
+ renderTable();
+}
+function updateStats(){
+ const n=calibrated()?points.length:0;
+ $('statCount').textContent=n;
+ $('statAvg').textContent=n?fixed(points.reduce((a,p)=>a+val(p).psi,0)/n,1)+' PSI':'— PSI';
+ const mm=n?points.filter(p=>p.m!=null):[];
+ $('statMine').textContent=mm.length?fixed(mm.reduce((a,p)=>a+p.m,0)/mm.length,1)+' PSI':'— PSI';
+ if(mm.length){
+  const d=mm.reduce((a,p)=>a+(p.m-val(p).psi),0)/mm.length;
+  $('statDiff').textContent=(d>0?'+':'')+fixed(d,1)+' PSI';
+ }else $('statDiff').textContent='—';
+ $('pdfBtn').disabled=n===0;
+}
+function renderTable(){
+ const hu=$('heightUnit').value,hl=hu==='psi'?'PSI':hu,fu=$('flowUnit').value;
+ const body=$('pointsBody');body.innerHTML='';
+ const n=calibrated()?points.length:0;
+ $('countBadge').textContent=n;
+ if(!n)body.innerHTML='<div class="empty-pts">Aún no hay puntos. Calibra los ejes y pon la mira sobre la curva.</div>';
+ else points.forEach((p,i)=>{
+  const v=val(p),d=document.createElement('div');d.className='pt';
+  d.innerHTML='<div class="pt-head"><span class="pt-n">'+(i+1)+'</span><strong>Punto '+(i+1)+'</strong>'
+   +'<button class="del" data-del="'+i+'" aria-label="Eliminar punto '+(i+1)+'"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>'
+   +'<div class="pt-vals"><div><small>Caudal ('+fu+')</small><b>'+fmt(v.q,1).toLocaleString('en-US')+'</b></div>'
+   +'<div><small>Altura ('+hl+')</small><b>'+fmt(v.h,1)+'</b></div>'
+   +'<div class="cv"><small>PSI curva</small><b>'+fixed(v.psi,1)+'</b></div></div>'
+   +'<div class="pt-mine"><label><span>Mi PSI</span><input class="mi" data-i="'+i+'" type="text" inputmode="decimal" placeholder="0.0" aria-label="Mi presión del punto '+(i+1)+'" value="'+(p.m==null?'':p.m)+'"></label>'
+   +'<span class="dif'+(p.m==null?'':' has')+'" id="dif'+i+'">'+diffLabel(p)+'</span></div>';
+  body.appendChild(d);
+ });
+ body.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{points.splice(+b.dataset.del,1);updateUI();apply()});
+ body.querySelectorAll('.mi').forEach(inp=>inp.addEventListener('input',()=>{
+  const i=+inp.dataset.i,v=parseFloat(inp.value.replace(',','.'));
+  points[i].m=isNaN(v)?null:v;
+  const el=$('dif'+i);el.textContent=diffLabel(points[i]);el.classList.toggle('has',points[i].m!=null);
+  updateStats();drawMarks();
+ }));
+ updateStats();
+}
+
+async function saveFile(blob,name){
+ const cap=window.Capacitor,P=cap&&cap.Plugins;
+ if(cap&&cap.isNativePlatform&&cap.isNativePlatform()&&P&&P.Filesystem&&P.Share){
+  try{
+   const b64=await new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(String(r.result).split(',')[1]);r.onerror=no;r.readAsDataURL(blob)});
+   const w=await P.Filesystem.writeFile({path:name,data:b64,directory:'CACHE'});
+   await P.Share.share({title:name,url:w.uri,dialogTitle:'Guardar o compartir'});
+  }catch(e){
+   if(!/cancel/i.test(String(e&&e.message||e)))alert('No se pudo guardar el archivo.');
+  }
+  return;
+ }
+ const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();
+}
+$('csvBtn').onclick=()=>{
+ if(!points.length||!calibrated()){alert('Primero calibra y agrega al menos un punto.');return}
+ const hu=$('heightUnit').value;
+ const rows=[['Punto','Caudal ('+$('flowUnit').value+')','Altura ('+(hu==='psi'?'PSI':hu)+')','Presion curva (PSI)','Mi presion (PSI)','Diferencia (PSI)','Diferencia (%)'],
+  ...points.map((p,i)=>{const v=val(p),d=diffOf(p);return[i+1,fmt(v.q,1),fmt(v.h,1),fmt(v.psi,2),p.m==null?'':p.m,d?fmt(d.d,2):'',d&&d.pct!=null?fmt(d.pct,2):'']})];
+ const blob=new Blob(['\ufeff'+rows.map(r=>r.join(',')).join('\r\n')],{type:'text/csv;charset=utf-8;'});
+ saveFile(blob,'puntos_curvapsi.csv');
+};
+
+$('pdfBtn').onclick=()=>{
+ if(!points.length||!calibrated())return;
+ if(!window.jspdf){alert('No se pudo cargar la librería de PDF. Revisa tu conexión a internet y recarga la página.');return}
+ const{jsPDF}=window.jspdf;
+ const doc=new jsPDF({unit:'mm',format:'a4'});
+ const PW=210,M=14,hu=$('heightUnit').value,hl=hu==='psi'?'PSI':hu,fu=$('flowUnit').value;
+ const cv=document.createElement('canvas');cv.width=W;cv.height=H;
+ const ctx=cv.getContext('2d');ctx.drawImage(img,0,0);
+ const k=Math.max(W,H)/900;
+ ctx.font='bold '+Math.round(13*k)+'px Arial';ctx.textBaseline='middle';
+ const label=(t,x,y,col)=>{const tw=ctx.measureText(t).width,bh=18*k;ctx.fillStyle=col;ctx.fillRect(x,y-bh/2,tw+10*k,bh);ctx.fillStyle='#fff';ctx.fillText(t,x+5*k,y)};
+ points.forEach((p,i)=>{
+  const x=p.nx*W,y=p.ny*H,mn=measNy(p);
+  if(mn!=null){
+   const y2=mn*H;
+   ctx.save();ctx.setLineDash([6*k,4*k]);ctx.lineWidth=2*k;ctx.strokeStyle='#c2410c';
+   ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y2);ctx.stroke();ctx.restore();
+   ctx.save();ctx.translate(x,y2);ctx.rotate(Math.PI/4);ctx.fillStyle='#c2410c';ctx.fillRect(-5*k,-5*k,10*k,10*k);
+   ctx.lineWidth=2*k;ctx.strokeStyle='#fff';ctx.strokeRect(-5*k,-5*k,10*k,10*k);ctx.restore();
+   label('Mi '+(i+1)+': '+fmt(p.m,1)+' PSI',x+8*k,y2+(y2>=y?18*k:-18*k),'#c2410c');
+  }
+  ctx.beginPath();ctx.arc(x,y,5*k,0,Math.PI*2);ctx.fillStyle='#0f766e';ctx.fill();
+  ctx.lineWidth=2*k;ctx.strokeStyle='#fff';ctx.stroke();
+  label((i+1)+': '+fmt(val(p).psi,1)+' PSI',x+8*k,y-18*k,'#0f766e');
+ });
+ const data=cv.toDataURL('image/jpeg',0.92);
+ doc.setFont('helvetica','bold');doc.setFontSize(18);doc.setTextColor(31,41,51);
+ doc.text('Informe de Prueba Hidráulica',M,18);
+ doc.setFont('helvetica','normal');doc.setFontSize(10);doc.setTextColor(102,117,133);
+ doc.text('Fecha: '+new Date().toLocaleDateString('es-PE')+'   ·   Altura en '+hl+'   ·   Caudal en '+fu,M,25);
+ const maxW=PW-2*M,maxH=120;let iw=maxW,ih=iw*H/W;
+ if(ih>maxH){ih=maxH;iw=ih*W/H}
+ doc.addImage(data,'JPEG',M+(maxW-iw)/2,30,iw,ih);
+ let y=30+ih+6;
+ doc.setFontSize(9);doc.setTextColor(15,118,110);doc.text('Verde: punto de la curva',M,y);
+ doc.setTextColor(194,65,12);doc.text('Naranja: medición propia',M+50,y);
+ y+=9;
+ const cols=[M,M+10,M+42,M+74,M+104,M+134];
+ const header=()=>{
+  doc.setFillColor(241,243,246);doc.rect(M,y-5,PW-2*M,8,'F');
+  doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(31,78,121);
+  ['#','Caudal ('+fu+')','Altura ('+hl+')','PSI curva','Mi PSI','Dif. (PSI / %)'].forEach((t,j)=>doc.text(t,cols[j],y));
+  y+=8;doc.setFont('helvetica','normal');doc.setTextColor(30,40,60);
+ };
+ header();
+ points.forEach((p,i)=>{
+  if(y>278){doc.addPage();y=20;header()}
+  const v=val(p);
+  doc.text(String(i+1),cols[0],y);
+  doc.text(fmt(v.q,1).toLocaleString('en-US'),cols[1],y);
+  doc.text(String(fmt(v.h,1)),cols[2],y);
+  doc.text(String(fmt(v.psi,1)),cols[3],y);
+  doc.text(p.m==null?'-':String(fmt(p.m,1)),cols[4],y);
+  doc.text(diffText(p).replace('—','-'),cols[5],y);
+  doc.setDrawColor(229,232,236);doc.line(M,y+2.5,PW-M,y+2.5);
+  y+=7;
+ });
+ if(y>262){doc.addPage();y=20}
+ y+=4;doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(31,41,51);
+ doc.text('Presión media (curva): '+$('statAvg').textContent,M,y);
+ const mm=points.filter(p=>p.m!=null);
+ if(mm.length){y+=6;doc.text('Mi presión media: '+$('statMine').textContent+'   ·   Diferencia media: '+$('statDiff').textContent,M,y)}
+ doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(120,135,160);
+ doc.text('Valores estimados según la calibración de ejes y la posición de la mira. Verificar antes de uso técnico.',M,y+8);
+ saveFile(doc.output('blob'),'informe_curvapsi.pdf');
+};
+
+updateUI();
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}
+</script>
+</body>
+</html>
