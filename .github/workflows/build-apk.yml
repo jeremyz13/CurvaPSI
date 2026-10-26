@@ -1,0 +1,62 @@
+name: Generar APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Instalar dependencias
+        run: npm install
+
+      - name: Preparar la app web
+        run: |
+          mkdir -p www
+          cp index.html manifest.json icon-192.png icon-512.png www/
+          cp node_modules/jspdf/dist/jspdf.umd.min.js www/jspdf.umd.min.js
+          sed -i 's#https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js#jspdf.umd.min.js#' www/index.html
+
+      - name: Crear proyecto Android
+        run: npx cap add android
+
+      - name: Ícono de la app
+        continue-on-error: true
+        run: npx @capacitor/assets generate --android --iconBackgroundColor '#17324d' --iconBackgroundColorDark '#17324d'
+
+      - name: Sincronizar archivos
+        run: npx cap sync android
+
+      - name: Compilar APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Renombrar APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk CurvaPSI.apk
+
+      - name: Guardar APK como archivo descargable
+        uses: actions/upload-artifact@v4
+        with:
+          name: CurvaPSI-apk
+          path: CurvaPSI.apk
+
+      - name: Publicar APK en Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-${{ github.run_number }}
+          name: CurvaPSI APK ${{ github.run_number }}
+          files: CurvaPSI.apk
